@@ -63,6 +63,13 @@ async function procesarBoleta(page: Page, boleta: EnrichedBoleta, oficial2: bool
       `APORTES EN JUICIO ${boleta.expediente} - ${boleta.juzgado} `.toUpperCase()
     )
   }
+  const observaciones = page.locator(
+    'xpath=/html/body/div[11]/div[2]/form[1]/table/tbody/tr[20]/td[3]/div/span/input[1]'
+  )
+  const contactoRecaudador = boleta.recaudador.celular || boleta.recaudador.telefono || ''
+  const textoObservaciones = `${boleta.recaudador.nombre}, ${contactoRecaudador}`
+  console.log(`Debug: observaciones =`, textoObservaciones)
+  await observaciones.fill(textoObservaciones)
   await page
     .locator('xpath=/html/body/div[11]/div[2]/form[1]/table/tbody/tr[19]/td[3]/div/span/span/a')
     .click()
