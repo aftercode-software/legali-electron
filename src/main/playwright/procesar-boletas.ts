@@ -75,7 +75,7 @@ async function procesarBoleta(page: Page, boleta: EnrichedBoleta, oficial2: bool
     'xpath=/html/body/div[11]/div[2]/form[1]/table/tbody/tr[20]/td[3]/div/span/input[1]'
   )
   const recaudador = boleta.recaudador
-  const textoObservaciones = `Dr. ${recaudador.nombre}: ${formatearTelefono(recaudador.telefono)}- ${recaudador.oficial}: ${formatearTelefono(recaudador.celular)}`
+  const textoObservaciones = `Dr. ${recaudador.nombre}: ${formatearTelefono(recaudador.telefono)} - ${recaudador.oficial}: ${formatearTelefono(recaudador.celular)}`
   console.log(`Debug: observaciones =`, textoObservaciones)
   await observaciones.fill(textoObservaciones)
   await page
