@@ -4,6 +4,14 @@ import path from 'path'
 import fs from 'fs'
 import { BASE_OUTPUT_DIR } from '../../shared/constants/output-dir'
 
+// 2616521150 -> 261-6521150 (si no tiene 10 dígitos se deja como viene)
+function formatearTelefono(telefono?: string): string {
+  const digitos = String(telefono ?? '').replace(/\D/g, '')
+  return digitos.length === 10
+    ? `${digitos.slice(0, 3)}-${digitos.slice(3)}`
+    : String(telefono ?? '')
+}
+
 // Procesar una sola boleta
 async function procesarBoleta(page: Page, boleta: EnrichedBoleta, oficial2: boolean) {
   await page.waitForTimeout(4000)
@@ -66,8 +74,8 @@ async function procesarBoleta(page: Page, boleta: EnrichedBoleta, oficial2: bool
   const observaciones = page.locator(
     'xpath=/html/body/div[11]/div[2]/form[1]/table/tbody/tr[20]/td[3]/div/span/input[1]'
   )
-  const contactoRecaudador = boleta.recaudador.celular || boleta.recaudador.telefono || ''
-  const textoObservaciones = `Dr. ${boleta.recaudador.nombre}, ${contactoRecaudador}`
+  const recaudador = boleta.recaudador
+  const textoObservaciones = `Dr. ${recaudador.nombre}: ${formatearTelefono(recaudador.telefono)}- ${recaudador.oficial}: ${formatearTelefono(recaudador.celular)}`
   console.log(`Debug: observaciones =`, textoObservaciones)
   await observaciones.fill(textoObservaciones)
   await page
