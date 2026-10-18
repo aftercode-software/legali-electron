@@ -1,4 +1,4 @@
-import { chromium, Page } from 'playwright'
+import { chromium, Locator, Page } from 'playwright'
 import { EnrichedBoleta } from '../../shared/interfaces/boletas'
 import path from 'path'
 import fs from 'fs'
@@ -10,6 +10,64 @@ function formatearTelefono(telefono?: string): string {
   return digitos.length === 10
     ? `${digitos.slice(0, 3)}-${digitos.slice(3)}`
     : String(telefono ?? '')
+}
+
+// Log en C:\LexFlow\logs para poder revisar cargas en la PC del cliente.
+// Nunca corta la carga si no se puede escribir.
+function logCarga(mensaje: string) {
+  console.log(mensaje)
+  try {
+    const logsDir = path.join(BASE_OUTPUT_DIR, 'logs')
+    fs.mkdirSync(logsDir, { recursive: true })
+    const ahora = new Date()
+    const archivo = path.join(logsDir, `boletas-${ahora.toISOString().slice(0, 10)}.log`)
+    fs.appendFileSync(archivo, `[${ahora.toISOString()}] ${mensaje}\n`)
+  } catch {
+    // sin log, la carga sigue igual
+  }
+}
+
+async function leerValor(campo: Locator): Promise<string | null> {
+  try {
+    return await campo.inputValue({ timeout: 2000 })
+  } catch {
+    return null
+  }
+}
+
+// Completa Observaciones y verifica que el texto haya quedado; si el sitio lo
+// borró o no lo tomó, reintenta. Si ya está bien, no agrega esperas.
+async function completarObservaciones(
+  page: Page,
+  campo: Locator,
+  texto: string,
+  boleta: string,
+  momento: string
+) {
+  for (let intento = 1; intento <= 3; intento++) {
+    const valorActual = await leerValor(campo)
+    if (valorActual === texto) {
+      logCarga(`Boleta ${boleta} - Observaciones OK (${momento}): ${texto}`)
+      return
+    }
+    if (intento > 1 || momento !== 'al completar') {
+      logCarga(
+        `Boleta ${boleta} - Observaciones con "${valorActual ?? 'sin leer'}" (${momento}), se vuelve a completar`
+      )
+      await page.waitForTimeout(500)
+    }
+    try {
+      await campo.fill(texto, { timeout: 5000 })
+    } catch (error) {
+      logCarga(`Boleta ${boleta} - Error al completar Observaciones (${momento}): ${error}`)
+    }
+  }
+  const valorFinal = await leerValor(campo)
+  logCarga(
+    valorFinal === texto
+      ? `Boleta ${boleta} - Observaciones OK (${momento}): ${texto}`
+      : `Boleta ${boleta} - ATENCION: Observaciones quedó "${valorFinal ?? 'sin leer'}" (${momento})`
+  )
 }
 
 // Procesar una sola boleta
@@ -76,8 +134,13 @@ async function procesarBoleta(page: Page, boleta: EnrichedBoleta, oficial2: bool
   )
   const recaudador = boleta.recaudador
   const textoObservaciones = `Dr. ${recaudador.nombre}: ${formatearTelefono(recaudador.telefono)} - ${recaudador.oficial}: ${formatearTelefono(recaudador.celular)}`
-  console.log(`Debug: observaciones =`, textoObservaciones)
-  await observaciones.fill(textoObservaciones)
+  await completarObservaciones(
+    page,
+    observaciones,
+    textoObservaciones,
+    boleta.boleta,
+    'al completar'
+  )
   await page
     .locator('xpath=/html/body/div[11]/div[2]/form[1]/table/tbody/tr[19]/td[3]/div/span/span/a')
     .click()
@@ -106,9 +169,16 @@ async function procesarBoleta(page: Page, boleta: EnrichedBoleta, oficial2: bool
   await page.waitForTimeout(1500)
   await page.locator('xpath=/html/body/div[13]/div[3]/a/span/span').click()
   await page.waitForTimeout(1500)
+  await completarObservaciones(
+    page,
+    observaciones,
+    textoObservaciones,
+    boleta.boleta,
+    'antes de grabar'
+  )
   const grabar = page.locator('xpath=/html/body/div[11]/div[3]/a[1]/span')
   await grabar.click()
-  console.log(`✅ Boleta ${boleta.boleta} completada`)
+  logCarga(`✅ Boleta ${boleta.boleta} completada (recaudador: ${recaudador.idNombre})`)
 }
 
 // Flujo principal
