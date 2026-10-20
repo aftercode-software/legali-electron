@@ -4,13 +4,8 @@ import path from 'path'
 import fs from 'fs'
 import { BASE_OUTPUT_DIR } from '../../shared/constants/output-dir'
 
-// 2616521150 -> 261-6521150 (si no tiene 10 dígitos se deja como viene)
-function formatearTelefono(telefono?: string): string {
-  const digitos = String(telefono ?? '').replace(/\D/g, '')
-  return digitos.length === 10
-    ? `${digitos.slice(0, 3)}-${digitos.slice(3)}`
-    : String(telefono ?? '')
-}
+// En ATM hay una sola recaudadora, por eso Observaciones es un texto fijo
+const OBSERVACIONES_ATM = 'DRA.AMARILLO MARCELA INES, CONTACTO: 2615024040'
 
 // Log en C:\Legali\logs para poder revisar cargas en la PC del cliente.
 // Nunca corta la carga si no se puede escribir.
@@ -203,7 +198,7 @@ async function procesarBoleta(page: Page, boleta: EnrichedBoleta) {
     )
   }
   const recaudador = boleta.recaudador
-  const textoObservaciones = `Dr. ${recaudador.nombre}: ${formatearTelefono(recaudador.telefono)} - ${recaudador.oficial}: ${formatearTelefono(recaudador.celular)}`
+  const textoObservaciones = OBSERVACIONES_ATM
   await completarObservaciones(
     page,
     observaciones,
